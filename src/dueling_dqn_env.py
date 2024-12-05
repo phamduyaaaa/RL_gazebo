@@ -13,14 +13,14 @@ from std_srvs.srv import Empty
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from src.respawnGoal import Respawn
 import cv2
+from setup import *
 class Env():
     def __init__(self, action_size):
-        self.init_x = -2.3 #m
-        self.init_y = -1.0
-        self.goal_x = -1.0   #| random goal
-        self.goal_y = 0.0    #|
-        # self.goal_x = 1.65  #| fixed goal
-        # self.goal_y = 2.0   #|
+        self.init_x = init_x   #| init  
+        self.init_y = init_y   #| 
+        self.goal_x = goal_x   #| goal
+        self.goal_y = goal_y   #|
+
         self.heading = 0
         self.action_size = action_size
         self.initGoal = True
