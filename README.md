@@ -6,6 +6,9 @@
 ```
 ### Chạy file update.bash bằng lệnh dưới dây để tiến hành cài đặt:
 ```
+    cd RL_gazebo
+```
+```
     chmod +x update.bash
 ```
 ```
