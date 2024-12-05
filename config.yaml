@@ -1,0 +1,7 @@
+pos:
+  init_x: -2.3
+  init_y: -1.0
+  goal_x: -5.150528
+  goal_y: -4.542812
+
+  num_episodes: 10000
