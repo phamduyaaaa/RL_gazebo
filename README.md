@@ -11,7 +11,7 @@
 ```
     ./update.bash
 ```
-## ✨ Tăng tốc Training
+# ✨ Tăng tốc Training
 ### 1, Sử dụng `gzsever` ( Thay trong file launch)
 VD:
 ```
