@@ -13,7 +13,6 @@ from src.dueling_dqn_env import Env
 from dueling_dqn_agent import *
 
 dirPath = os.path.dirname(os.path.realpath(__file__))
-dirPath = dirPath.replace('/home/tung/Downloads/dueling_dqn_gazebo/nodes', '/home/tung/Downloads/dueling_dqn_gazebo/save_model/Dueling_DQN_trial_1')
 LOG_DATA_DIR = dirPath + '/log_data'
 
 EPISODES = 10000    
