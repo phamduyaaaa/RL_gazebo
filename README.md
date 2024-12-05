@@ -14,6 +14,10 @@
 ```
     ./update.bash
 ```
+### Chạy file python3:
+```
+    python3 dueling_dqn_pt_model.py 
+```
 # ✨ Tăng tốc Training
 ### 1, Sử dụng `gzsever` ( Thay trong file launch)
 - VD:
