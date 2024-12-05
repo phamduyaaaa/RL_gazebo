@@ -7,5 +7,8 @@ sudo apt install dialog -y
 
 Chạy file update.bash bằng lệnh dưới dây để tiến hành vá lỗi:
 ```
+    chmod +x update.bash
+```
+```
     ./update.bash
 ```
