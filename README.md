@@ -1,6 +1,6 @@
 # ✨ Hướng dẫn Training
 ### Thuê Vast sử dụng Template 2.1.0
-### Chạy dòng lệnh dưới dây trước
+### Chạy dòng lệnh dưới đây trước
 ```
     sudo apt install dialog -y
 ```
