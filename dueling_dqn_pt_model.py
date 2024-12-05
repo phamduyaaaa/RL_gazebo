@@ -11,11 +11,12 @@ sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 from std_msgs.msg import Float32MultiArray
 from src.dueling_dqn_env import Env
 from dueling_dqn_agent import *
+from setup import *
 
 dirPath = os.path.dirname(os.path.realpath(__file__))
 LOG_DATA_DIR = dirPath + '/log_data'
 
-EPISODES = 10000    
+EPISODES = num_episodes    
 
 def Training():
     mode = "train"
