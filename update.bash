@@ -58,4 +58,4 @@
     sleep 1
 
     echo "100"; echo "Hoàn tất!"
-) | dialog --gauge "Pha 1 cốc cà phê trong đi, vì bạn là cậu bé thư giãn ☕ ..." 10 40 0
+) | dialog --gauge "Tôi sẽ không vội vì tôi là chiếc máy tính thư giãn 💻😌🎵 ..." 10 40 0
