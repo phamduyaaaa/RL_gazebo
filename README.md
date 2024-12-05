@@ -1,5 +1,8 @@
 # ✨ Hướng dẫn Training
 ### Thuê Vast sử dụng Template 2.1.0
+```
+    https://hub.docker.com/r/phamducduy1/ubuntu-focal-desktop-ros-noetic
+```
 ### Chạy dòng lệnh dưới đây trước
 ```
     sudo apt install dialog -y
