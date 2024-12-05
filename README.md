@@ -1,11 +1,10 @@
 # ✨ Hướng dẫn Training
-Thuê Vast sử dụng Template 2.1.0
-Chạy dòng lệnh dưới dây trước
+### Thuê Vast sử dụng Template 2.1.0
+### Chạy dòng lệnh dưới dây trước
 ```
-sudo apt install dialog -y
+    sudo apt install dialog -y
 ```
-
-Chạy file update.bash bằng lệnh dưới dây để tiến hành vá lỗi:
+### Chạy file update.bash bằng lệnh dưới dây để tiến hành cài đặt:
 ```
     chmod +x update.bash
 ```
