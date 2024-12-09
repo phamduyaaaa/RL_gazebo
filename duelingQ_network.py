@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchvision.models import resnet50, vgg16
+from torchvision.models import resnet18, vgg11
 
 class DuelingQNetwork(nn.Module):
     def __init__(self):
@@ -10,16 +10,16 @@ class DuelingQNetwork(nn.Module):
         self.num_actions = 5
         self.num_quantiles = 51
 
-        # ResNet-50 (chỉ lấy phần convolutional)
-        self.resnet = resnet50(pretrained=True)
+        # ResNet-18 (chỉ lấy phần convolutional)
+        self.resnet = resnet18(pretrained=True)
         self.resnet = nn.Sequential(*list(self.resnet.children())[:-1])  # Loại bỏ lớp fully connected
-        self.resnet_output_size = 2048
+        self.resnet_output_size = 512  # ResNet-18 có đầu ra 512 đặc trưng
 
-        # VGG-16 (chỉ lấy phần convolutional)
-        self.vgg = vgg16(pretrained=True)
+        # VGG-11 (chỉ lấy phần convolutional)
+        self.vgg = vgg11(pretrained=True)
         self.vgg = nn.Sequential(*list(self.vgg.features),  # Lấy phần feature layers
                                  nn.AdaptiveAvgPool2d((1, 1)))  # Pooling để cố định kích thước đầu ra
-        self.vgg_output_size = 512
+        self.vgg_output_size = 512  # VGG-11 có đầu ra 512 đặc trưng
 
         # Fully connected layers để kết hợp đặc trưng
         self.fc1 = nn.Linear(self.resnet_output_size + self.vgg_output_size, 512)
@@ -30,11 +30,11 @@ class DuelingQNetwork(nn.Module):
         # Input x: (batch_size, 1, height, width), phải mở rộng thành (batch_size, 3, height, width)
         x = x.repeat(1, 3, 1, 1)
 
-        # Tính đặc trưng từ ResNet-50
+        # Tính đặc trưng từ ResNet-18
         resnet_features = self.resnet(x)
         resnet_features = torch.flatten(resnet_features, 1)
 
-        # Tính đặc trưng từ VGG-16
+        # Tính đặc trưng từ VGG-11
         vgg_features = self.vgg(x)
         vgg_features = torch.flatten(vgg_features, 1)
 
@@ -50,5 +50,3 @@ class DuelingQNetwork(nn.Module):
         quantiles = val + adv - adv.mean(dim=1, keepdim=True)
         
         return quantiles
-
-    
