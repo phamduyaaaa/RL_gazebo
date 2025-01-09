@@ -14,6 +14,7 @@ from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from src.respawnGoal import Respawn
 import cv2
 from setup import *
+import math
 class Env():
     def __init__(self, action_size):
         self.init_x = init_x   #| init  
@@ -88,37 +89,48 @@ class Env():
         return image , done
 
     def setReward(self, done, action):
-        """
-        Tính phần thưởng cho robot dựa trên trạng thái kết thúc (done) và hành động (action).
-        Phần thưởng sẽ giống như trong game Frozen Lake.
-        
-        Args:
-            done (bool): Trạng thái kết thúc (True nếu robot va chạm hoặc đạt mục tiêu).
-            action (int): Hành động hiện tại của robot (không sử dụng trong tính toán phần thưởng ở đây).
-
-        Returns:
-            tuple: reward (float), goal_counters (int).
-        """
-        # Phần thưởng mặc định là 0 (cho mỗi bước di chuyển bình thường)
+        import math
+        # Phần thưởng mặc định
         reward = 0
 
-        # Nếu robot va chạm (tương tự rơi vào hồ băng)
-        if done:
-            rospy.loginfo("*****************")
-            rospy.loginfo("* COLLISION !!! *")
-            rospy.loginfo("*****************")
-            reward = -1.0  # Phạt khi va chạm (rơi vào hồ băng)
-            self.pub_cmd_vel.publish(Twist())  # Dừng robot
+        try:
+            # Xử lý dấu phân cách thập phân và ép kiểu
+            pos_x = float(str(self.position.x).replace(',', '.'))
+            pos_y = float(str(self.position.y).replace(',', '.'))
+            goal_x = float(str(self.goal_x).replace(',', '.'))
+            goal_y = float(str(self.goal_y).replace(',', '.'))
 
-            # Kiểm tra nếu robot đạt đến mục tiêu
-            if self.position.x == self.goal_x and self.position.y == self.goal_y:
-                rospy.loginfo("Goal reached!")
-                reward = 1.0  # Thưởng khi đến mục tiêu
+            # Tính khoảng cách hiện tại đến mục tiêu
+            current_distance = math.sqrt((pos_x - goal_x)**2 + (pos_y - goal_y)**2)
+
+            # Phần còn lại của logic tính phần thưởng
+            if done:
+                if pos_x == goal_x and pos_y == goal_y:
+                    rospy.loginfo("Goal reached!")
+                    reward = 10.0
+                    self.goal_counters += 1
+                else:
+                    rospy.loginfo("*****************")
+                    rospy.loginfo("* COLLISION !!! *")
+                    rospy.loginfo("*****************")
+                    reward = -5.0
+                self.pub_cmd_vel.publish(Twist())
+            else:
+                previous_distance = getattr(self, 'previous_distance', float('inf'))
+                if current_distance < previous_distance:
+                    reward = 0.1
+                else:
+                    reward = -0.1
+                self.previous_distance = current_distance
+
+        except ValueError as e:
+            rospy.logerr(f"Error converting position or goal to float: {e}")
+            reward = -1.0  # Phạt nếu dữ liệu không hợp lệ
 
         return reward, self.goal_counters
 
 
-    
+
 
     def step(self, action):
         max_angular_vel = 0.75  #1.5 0.5
