@@ -1,8 +1,8 @@
 pos:
   init_x: -2.3
   init_y: -1.0
-  goal_x: 1,788110
-  goal_y: -0,028349
+  goal_x: -5.073111
+  goal_y: 4.211031
 
 num_episodes: 10000
 replay_buffer_size: 50000
