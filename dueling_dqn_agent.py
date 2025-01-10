@@ -16,6 +16,7 @@ from collections import deque
 from std_msgs.msg import Float32MultiArray
 from duelingQ_network import DuelingQNetwork
 from torchsummary import summary
+from setup import *
 LOSS_DATA_DIR = os.path.dirname(os.path.realpath(__file__))
 LOSS_DATA_DIR = LOSS_DATA_DIR.replace('dueling_dqn_gazebo/nodes', 'dueling_dqn_gazebo/save_model/Dueling_DQN_trial_1/log_data')
 
