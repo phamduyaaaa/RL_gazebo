@@ -72,7 +72,7 @@ class DuelingQAgent():
         self.tau = 0.01
         self.batch_size =64
         self.train_start = 64
-        self.memory_size = 45000
+        self.memory_size = replay_buffer_size
         self.RAM = MemoryBuffer(self.memory_size)
         
         self.Pred_model = DuelingQNetwork()
