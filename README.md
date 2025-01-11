@@ -32,8 +32,8 @@
 - VD:
 ```
     <physics type='ode'>
-      <max_step_size>0.001</max_step_size>
-      <real_time_factor>100</real_time_factor>
+      <max_step_size>0.01</max_step_size>
+      <real_time_factor>0.5</real_time_factor>
       <real_time_update_rate>5000</real_time_update_rate>
     </physics>
 ```
