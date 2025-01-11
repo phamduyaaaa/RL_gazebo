@@ -27,7 +27,7 @@ class DuelingQNetwork(nn.Module):
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
-        x = x.view(x.size(0), -1)
+        x = x.view(x.size(0), -1)  # Tự động flatten
         x = F.relu(self.fc1(x))
         x = self.dropout(x)
         x = self.fc2(x)
