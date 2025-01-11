@@ -109,21 +109,21 @@ class Env():
         if done:
             if self.position.x == self.goal_x and self.position.y == self.goal_y:
                 rospy.loginfo("Goal reached!")
-                reward = 10.0  # Thưởng lớn khi đạt mục tiêu
+                reward = 100.0  # Thưởng lớn khi đạt mục tiêu
                 self.goal_counters += 1
             else:
                 rospy.loginfo("*****************")
                 rospy.loginfo("* COLLISION !!! *")
                 rospy.loginfo("*****************")
-                reward = -5.0  # Phạt nặng khi va chạm
+                reward += -5.0  # Phạt nặng khi va chạm
             self.pub_cmd_vel.publish(Twist())  # Dừng robot
         else:
             # Phần thưởng dựa trên tiến triển về mục tiêu
             previous_distance = getattr(self, 'previous_distance', float('inf'))
             if current_distance < previous_distance:
-                reward = 0.1  # Thưởng nhỏ khi tiến gần hơn
+                reward += 0.1  # Thưởng nhỏ khi tiến gần hơn
             else:
-                reward = -0.1  # Phạt nhỏ khi đi xa hơn
+                reward += -0.1  # Phạt nhỏ khi đi xa hơn
 
             # Cập nhật khoảng cách trước đó
             self.previous_distance = current_distance
