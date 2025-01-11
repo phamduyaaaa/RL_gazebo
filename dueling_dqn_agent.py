@@ -24,24 +24,53 @@ LOSS_DATA_DIR = LOSS_DATA_DIR.replace(
 )
 
 class MemoryBuffer():
-    def __init__(self, size):
+    def __init__(self, size, stack_size=4):
         self.buffer = deque(maxlen=size)
         self.maxSize = size
-
+        self.len = 0
+        self.stack_size = stack_size
+        self.frames = deque(maxlen=stack_size)  # Store the most recent frames for stacking
+        
     def sample(self, count):
-        count = min(count, len(self.buffer))
+        batch = []
+        count = min(count, self.len)
         batch = random.sample(self.buffer, count)
         
-        states = np.float32([item[0] for item in batch])
-        actions = np.float32([item[1] for item in batch])
-        rewards = np.float32([item[2] for item in batch])
-        next_states = np.float32([item[3] for item in batch])
-        dones = np.bool8([item[4] for item in batch])
+        states_array = np.float32([array[0] for array in batch])
+        actions_array = np.float32([array[1] for array in batch])
+        rewards_array = np.float32([array[2] for array in batch])
+        next_states_array = np.float32([array[3] for array in batch])
+        dones = np.bool8([array[4] for array in batch])
         
-        return states, actions, rewards, next_states, dones
+        return states_array, actions_array, rewards_array, next_states_array, dones
+    
+    def len(self):
+        return self.len
+    
+    def add(self, s, a, r, new_s, d):
+        # Add the current frame to the frame buffer
+        self.frames.append(s)
+        if len(self.frames) == self.stack_size:
+            # Stack the frames to form a single state
+            stacked_state = np.stack(list(self.frames), axis=0)  # Shape: (stack_size, H, W)
+        else:
+            # Pad with the same frame if we have less than stack_size frames
+            stacked_state = np.stack([self.frames[0]] * (self.stack_size - len(self.frames)) + list(self.frames), axis=0)
 
-    def add(self, state, action, reward, next_state, done):
-        self.buffer.append((state, action, reward, next_state, done))
+        # For the next state, add the new frame and repeat the stacking process
+        self.frames.append(new_s)
+        if len(self.frames) == self.stack_size:
+            stacked_next_state = np.stack(list(self.frames), axis=0)
+        else:
+            stacked_next_state = np.stack([self.frames[0]] * (self.stack_size - len(self.frames)) + list(self.frames), axis=0)
+        
+        # Add the stacked states to the buffer
+        transition = (stacked_state, a, r, stacked_next_state, d)
+        self.len += 1 
+        if self.len > self.maxSize:
+            self.len = self.maxSize
+        self.buffer.append(transition)
+
 
 class DuelingQAgent():
     def __init__(self, state_size, action_size, mode, load_eps):
