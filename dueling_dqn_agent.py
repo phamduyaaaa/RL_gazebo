@@ -154,44 +154,32 @@ class DuelingQAgent():
 
     def TrainModel(self):
         states, actions, rewards, next_states, dones = self.RAM.sample(self.batch_size)
-        states = np.array(states).squeeze()
+        states = np.array(states).squeeze()  # Shape: (batch_size, stack_size, H, W)
         next_states = np.array(next_states).squeeze()
-        states = torch.tensor(states).view(64, 1, 144, 176)
-        next_states = torch.tensor(next_states).view(64, 1, 144, 176)
-
+        
+        # Convert to PyTorch tensors
+        states = torch.tensor(states).float()
+        next_states = torch.tensor(next_states).float()
+        
         actions = torch.Tensor(actions)
         actions = actions.type(torch.int64).unsqueeze(-1)
         
         next_q_value = torch.max(self.Target_model(next_states), dim=1)[0].detach().numpy()
         
-        ## check if the episode terminates in next step
-        q_value = np.zeros((self.batch_size,51))
-        
+        q_value = np.zeros((self.batch_size, 51))
         for i in range(self.batch_size):
             if dones[i]:
                 q_value[i] = rewards[i]
             else:
-                
-                q_value[i] = rewards[i]+self.discount_factor * next_q_value[i]
-
-        td_target = torch.Tensor(q_value)
-        tung=self.Pred_model(states)
-        predicted_values = tung.gather(1, actions.view(64, 1, 1).expand(64, 1, tung.size(2))).squeeze()
-
+                q_value[i] = rewards[i] + self.discount_factor * next_q_value[i]
         
-
-
-        self.loss=self.quantile_huber_loss(td_target,predicted_values )
-       
+        td_target = torch.Tensor(q_value)
+        predicted_values = self.Pred_model(states).gather(1, actions.view(64, 1, 1).expand(64, 1, 51)).squeeze()
+        
+        self.loss = self.quantile_huber_loss(td_target, predicted_values)
         self.optimizer.zero_grad()
         self.loss.backward()
         self.optimizer.step()
         self.soft_update(self.Pred_model, self.Target_model)
-        self.episode_loss += predicted_values.shape[0] * self.loss.item()
-        self.running_loss += self.loss.item()
-        cal_loss = self.episode_loss / len(states)
-        self.training_loss.append(cal_loss)
-        self.counter += 1
-        self.x_episode.append(self.counter)
-        np.savetxt(LOSS_DATA_DIR + '/loss.csv', self.training_loss, delimiter = ' , ')
+
         
