@@ -44,7 +44,24 @@ class MemoryBuffer():
         return self.len
     
     def add(self, s, a, r, new_s, d):
-        transition = (s, a, r, new_s, d)
+        # Add the current frame to the frame buffer
+        self.frames.append(s)
+        if len(self.frames) == self.stack_size:
+            # Stack the frames to form a single state
+            stacked_state = np.stack(list(self.frames), axis=0)  # Shape: (stack_size, H, W)
+        else:
+            # Pad with the same frame if we have less than stack_size frames
+            stacked_state = np.stack([self.frames[0]] * (self.stack_size - len(self.frames)) + list(self.frames), axis=0)
+
+        # For the next state, add the new frame and repeat the stacking process
+        self.frames.append(new_s)
+        if len(self.frames) == self.stack_size:
+            stacked_next_state = np.stack(list(self.frames), axis=0)
+        else:
+            stacked_next_state = np.stack([self.frames[0]] * (self.stack_size - len(self.frames)) + list(self.frames), axis=0)
+        
+        # Add the stacked states to the buffer
+        transition = (stacked_state, a, r, stacked_next_state, d)
         self.len += 1 
         if self.len > self.maxSize:
             self.len = self.maxSize
