@@ -81,7 +81,7 @@ def Training():
                 get_action.data = [action, reward_per_episode, reward]
                 pub_get_action.publish(get_action)
 
-                if e % 10 == 0:
+                if e % 100 == 0:
                     torch.save(agent.Pred_model.state_dict(), agent.dirPath + str(e) + '.pt')
 
                 if step >= 1000:
