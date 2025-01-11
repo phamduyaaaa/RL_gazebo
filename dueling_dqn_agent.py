@@ -48,28 +48,35 @@ class MemoryBuffer():
         return self.len
     
     def add(self, s, a, r, new_s, d):
-        # Add the current frame to the frame buffer
+        # Nếu dữ liệu có nhiều kênh (ví dụ RGB), chuyển thành grayscale
+        if len(s.shape) == 3:  # (C, H, W)
+            s = np.mean(s, axis=0, keepdims=True)  # Giữ nguyên chiều H, W, nhưng chuyển thành 1 kênh
+        if len(new_s.shape) == 3:
+            new_s = np.mean(new_s, axis=0, keepdims=True)
+
         self.frames.append(s)
         if len(self.frames) == self.stack_size:
-            # Stack the frames to form a single state
-            stacked_state = np.stack(list(self.frames), axis=0)  # Shape: (stack_size, H, W)
+            stacked_state = np.stack(list(self.frames), axis=0)
         else:
-            # Pad with the same frame if we have less than stack_size frames
             stacked_state = np.stack([self.frames[0]] * (self.stack_size - len(self.frames)) + list(self.frames), axis=0)
 
-        # For the next state, add the new frame and repeat the stacking process
         self.frames.append(new_s)
         if len(self.frames) == self.stack_size:
             stacked_next_state = np.stack(list(self.frames), axis=0)
         else:
             stacked_next_state = np.stack([self.frames[0]] * (self.stack_size - len(self.frames)) + list(self.frames), axis=0)
-        
-        # Add the stacked states to the buffer
+
+        # Chọn frame cuối cùng (1 kênh) để đảm bảo tương thích
+        stacked_state = stacked_state[-1:]  # Chọn frame cuối cùng (1 kênh)
+        stacked_next_state = stacked_next_state[-1:]  # Chọn frame cuối cùng (1 kênh)
+
+        # Lưu vào bộ nhớ
         transition = (stacked_state, a, r, stacked_next_state, d)
-        self.len += 1 
+        self.len += 1
         if self.len > self.maxSize:
             self.len = self.maxSize
         self.buffer.append(transition)
+
 
 
 class DuelingQAgent():
@@ -81,6 +88,7 @@ class DuelingQAgent():
             'dueling_dqn_gazebo/save_model/Dueling_DQN_trial_1/pt_trial_1_'
         )
         self.result = Float32MultiArray()
+        self.tau = 0.001
         self.taus = torch.linspace(0.0, 1.0, 51, dtype=torch.float32)
         self.mode = mode
         self.load_model = mode == "test"
@@ -114,13 +122,17 @@ class DuelingQAgent():
         self.Target_model.load_state_dict(self.Pred_model.state_dict())
 
     def getAction(self, state):
-        if len(state.shape) == 2:
-            state = torch.from_numpy(state).unsqueeze(0).view(1, 1, 144, 176)
-            q_value = torch.mean(self.Pred_model(state), dim=2)
+        if len(state.shape) == 2:  # Nếu trạng thái là ảnh 2D
+            state = torch.from_numpy(state).unsqueeze(0).unsqueeze(0).float()  # Thêm batch size và channel
+        elif len(state.shape) == 3 and state.shape[0] > 1:  # Nếu trạng thái có nhiều kênh
+            state = torch.mean(state, dim=0, keepdim=True).unsqueeze(0)  # Chuyển sang grayscale và thêm batch size
+        
+        q_value = torch.mean(self.Pred_model(state), dim=2)
+        
+        if self.mode == "train" and np.random.rand() <= self.epsilon:
+            return random.randrange(self.action_size)
+        return int(torch.argmax(q_value))
 
-            if self.mode == "train" and np.random.rand() <= self.epsilon:
-                return random.randrange(self.action_size)
-            return int(torch.argmax(q_value))
 
     def quantile_huber_loss(self, target_quantiles, predicted_quantiles, kappa=0.5):
         errors = target_quantiles - predicted_quantiles
@@ -132,22 +144,51 @@ class DuelingQAgent():
     def soft_update(self, local_model, target_model):
         for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
             target_param.data.copy_(self.tau * local_param.data + (1.0 - self.tau) * target_param.data)
-
+    
     def TrainModel(self):
         states, actions, rewards, next_states, dones = self.RAM.sample(self.batch_size)
-        
+
+        # Chuyển đổi dữ liệu sang dạng tensor
         states = torch.tensor(states).float()
         next_states = torch.tensor(next_states).float()
-        actions = torch.tensor(actions, dtype=torch.int64).unsqueeze(-1)
-        
-        next_q_values = torch.max(self.Target_model(next_states), dim=1)[0].detach().numpy()
-        q_values = rewards + self.discount_factor * next_q_values * (~dones)
-        td_target = torch.tensor(q_values)
+        actions = torch.tensor(actions, dtype=torch.int64).unsqueeze(-1)  # (batch_size, 1)
+        rewards = torch.tensor(rewards).float()
+        dones = torch.tensor(dones).bool()
 
-        predicted_values = self.Pred_model(states).gather(1, actions).squeeze()
-        loss = self.quantile_huber_loss(td_target, predicted_values)
+        # Tính next_q_values
+        next_q_values = torch.max(self.Target_model(next_states), dim=2)[0].detach()
+
+        # Mở rộng chiều của dones
+        dones = dones.unsqueeze(-1)  # (batch_size, 1)
+        dones = dones.expand_as(next_q_values)  # (batch_size, num_actions, num_quantiles)
+
+        # Tính giá trị Q
+        q_values = rewards.unsqueeze(-1) + self.discount_factor * next_q_values * (~dones)
+        
+        # Thay đổi cách tính td_target để có kích thước (batch_size, num_actions, num_quantiles)
+        td_target = q_values.unsqueeze(2).expand_as(self.Pred_model(states))  # (batch_size, num_actions, num_quantiles)
+
+        # Lấy predicted_values từ Pred_model
+        predicted_values = self.Pred_model(states)  # (batch_size, num_actions, num_quantiles)
+
+        # Kiểm tra và đảm bảo td_target và predicted_values có cùng kích thước
+        assert td_target.size() == predicted_values.size(), \
+            f"Size mismatch: td_target size {td_target.size()} vs predicted_values size {predicted_values.size()}"
+
+        # Tính loss
+        loss = self.loss_func(predicted_values, td_target)
 
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
         self.soft_update(self.Pred_model, self.Target_model)
+
+
+
+
+
+
+
+
+
+
