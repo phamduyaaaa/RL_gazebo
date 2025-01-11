@@ -5,4 +5,4 @@ pos:
   goal_y: 4.211031
 
 num_episodes: 10000
-replay_buffer_size: 50000
+replay_buffer_size: 100000
