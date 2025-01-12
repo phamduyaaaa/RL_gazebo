@@ -9,7 +9,7 @@ class DuelingQNetwork(nn.Module):
         self.num_quantiles = 51
 
         # Sửa số kênh đầu vào của conv1 thành 1
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=5, stride=2)  # Chấp nhận 1 kênh đầu vào
+        self.conv1 = nn.Conv2d(4, 32, kernel_size=5, stride=2)  # Chấp nhận 1 kênh đầu vào
         self.bn1 = nn.BatchNorm2d(32)
 
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2)
@@ -33,4 +33,3 @@ class DuelingQNetwork(nn.Module):
         x = self.fc2(x)
         quantiles = x.view(-1, self.num_actions, self.num_quantiles)
         return quantiles
-
