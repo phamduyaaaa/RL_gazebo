@@ -15,7 +15,6 @@ from setup import *
 
 dirPath = os.path.dirname(os.path.realpath(__file__))
 LOG_DATA_DIR = dirPath + '/log_data'
-
 EPISODES = num_episodes    
 
 def Training():
@@ -65,12 +64,20 @@ def Training():
         done = False
         counters = 0
         state = env.reset()
+        stacked_frames = [state] * 4
         reward_per_episode = 0
         if len(state.shape)==2:
             for step in range(agent.episode_step):
-                action = agent.getAction(state)
+                stacked_state = np.stack(stacked_frames, axis=0)  # Ghép 4 ảnh thành tensor
+                stacked_state = torch.tensor(stacked_state, dtype=torch.float32).unsqueeze(0)  # Thêm batch dimension
+                action = agent.getAction(stacked_state)
+
                 next_state, reward, done, counters = env.step(action)
-                done = np.bool8(done)
+                done = np.bool_(done)
+
+                # Cập nhật stack
+                stacked_frames.pop(0)  # Loại bỏ frame cũ nhất
+                stacked_frames.append(next_state)  # Thêm frame mới nhất
                 
                 agent.RAM.add(state, action, reward, next_state, done)
                 if agent.RAM.len >= agent.train_start:
@@ -81,7 +88,7 @@ def Training():
                 get_action.data = [action, reward_per_episode, reward]
                 pub_get_action.publish(get_action)
 
-                if e % 100 == 0:
+                if e % 10 == 0:
                     torch.save(agent.Pred_model.state_dict(), agent.dirPath + str(e) + '.pt')
 
                 if step >= 1000:
