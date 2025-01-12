@@ -3,13 +3,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class DuelingQNetwork(nn.Module):
-    def __init__(self):
+    def __init__(self, num_actions=5, num_quantiles=51):
         super(DuelingQNetwork, self).__init__()
-        self.num_actions = 5
-        self.num_quantiles = 51
+        self.num_actions = num_actions
+        self.num_quantiles = num_quantiles
 
-        # Sửa số kênh đầu vào của conv1 thành 1
-        self.conv1 = nn.Conv2d(4, 32, kernel_size=5, stride=2)  # Chấp nhận 1 kênh đầu vào
+        # Các lớp Conv và FC như trước
+        self.conv1 = nn.Conv2d(4, 32, kernel_size=5, stride=2)
         self.bn1 = nn.BatchNorm2d(32)
 
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2)
@@ -27,9 +27,13 @@ class DuelingQNetwork(nn.Module):
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
         x = F.relu(self.bn3(self.conv3(x)))
-        x = x.view(x.size(0), -1)  # Tự động flatten
+        x = x.view(x.size(0), -1)
         x = F.relu(self.fc1(x))
         x = self.dropout(x)
         x = self.fc2(x)
+        
+        # Đảm bảo output có kích thước (batch_size, num_actions, num_quantiles)
         quantiles = x.view(-1, self.num_actions, self.num_quantiles)
         return quantiles
+
+
