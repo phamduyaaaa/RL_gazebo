@@ -88,38 +88,22 @@ class Env():
         return image , done
 
     def setReward(self, done, action):
-        reward = 0
+        # Tính khoảng cách hiện tại đến mục tiêu
         current_distance = math.sqrt((self.position.x - self.goal_x)**2 + (self.position.y - self.goal_y)**2)
         
         if done:
-            if self.position.x == self.goal_x and self.position.y == self.goal_y:
+            if current_distance <= 0.1:  # Ngưỡng để xác định đã đến đích
                 rospy.loginfo("Goal reached!")
-                reward = 10.0
+                reward = 100.0  # Phần thưởng khi đến đích
                 self.goal_counters += 1
             else:
-                rospy.loginfo("Collision occurred!")
-                reward = -5.0
-            self.pub_cmd_vel.publish(Twist())  # Stop robot
+                rospy.loginfo("Done, but not goal (no penalty for collision).")
+                reward = 0.0  # Không phạt nếu va chạm
+            self.pub_cmd_vel.publish(Twist())  # Dừng robot
         else:
-            # Phần thưởng dựa trên khoảng cách
-            previous_distance = getattr(self, 'previous_distance', float('inf'))
-            if current_distance < previous_distance:
-                reward += 0.1  # Tiến gần mục tiêu
-            else:
-                reward -= 0.2  # Đi xa hơn
-    
-            # Thưởng thêm nếu hướng đi đúng
-            angle_to_goal = math.atan2(self.goal_y - self.position.y, self.goal_x - self.position.x)
-            angle_difference = abs(angle_to_goal - self.yaw)
-            if angle_difference < 0.1:  # Góc lệch nhỏ
-                reward += 0.05
-    
-            # Phạt nếu gần vật cản
-            if self.min_obstacle_distance < 0.5:  # Cảm biến phát hiện vật cản gần
-                reward -= 0.3
-    
-            self.previous_distance = current_distance
-    
+            # Phần thưởng là giá trị âm của khoảng cách
+            reward = -current_distance
+
         return reward, self.goal_counters
 
 
