@@ -99,10 +99,6 @@ class Env():
         current_distance = math.sqrt((self.position.x - self.goal_x)**2 + (self.position.y - self.goal_y)**2)
         reward = 0.0
     
-        # Tính góc hướng của robot đến mục tiêu chính
-        angle_to_goal = math.atan2(self.goal_y - self.position.y, self.goal_x - self.position.x)
-        angle_difference = abs(angle_to_goal - self.yaw)  # yaw là góc quay của robot
-    
         if done:
             if current_distance <= 0.1:  # Ngưỡng để xác định đã đến đích chính
                 rospy.loginfo("Goal reached!")
@@ -124,10 +120,6 @@ class Env():
                     reward += 10.0  # Phần thưởng khi đi qua mỗi điểm đích phụ
                     sub_goals.pop(i)  # Loại bỏ điểm đích phụ đã đạt được để không thưởng lại
                     break
-    
-            # Thưởng thêm nếu robot đi đúng hướng
-            if angle_difference < 0.1:  # Giả sử góc lệch nhỏ hơn 0.1 radian (khoảng 5.7 độ)
-                reward += 0.1  # Thưởng thêm nếu robot đi đúng hướng về đích
     
         return reward, self.goal_counters
 
