@@ -88,48 +88,48 @@ class Env():
         return image , done
 
     def setReward(self, done, action):
-    # Danh sách các điểm đích phụ
-    sub_goals = [
-        (2.275399, -1.983545),
-        (0.024309, 0.898684),
-        (-5.071956, 1.048198),
-    ]
-
-    # Tính khoảng cách hiện tại đến mục tiêu chính
-    current_distance = math.sqrt((self.position.x - self.goal_x)**2 + (self.position.y - self.goal_y)**2)
-    reward = 0.0
-
-    # Tính góc hướng của robot đến mục tiêu chính
-    angle_to_goal = math.atan2(self.goal_y - self.position.y, self.goal_x - self.position.x)
-    angle_difference = abs(angle_to_goal - self.yaw)  # yaw là góc quay của robot
-
-    if done:
-        if current_distance <= 0.1:  # Ngưỡng để xác định đã đến đích chính
-            rospy.loginfo("Goal reached!")
-            reward = 100.0  # Phần thưởng khi đến đích chính
-            self.goal_counters += 1
+        # Danh sách các điểm đích phụ
+        sub_goals = [
+            (2.275399, -1.983545),
+            (0.024309, 0.898684),
+            (-5.071956, 1.048198),
+        ]
+    
+        # Tính khoảng cách hiện tại đến mục tiêu chính
+        current_distance = math.sqrt((self.position.x - self.goal_x)**2 + (self.position.y - self.goal_y)**2)
+        reward = 0.0
+    
+        # Tính góc hướng của robot đến mục tiêu chính
+        angle_to_goal = math.atan2(self.goal_y - self.position.y, self.goal_x - self.position.x)
+        angle_difference = abs(angle_to_goal - self.yaw)  # yaw là góc quay của robot
+    
+        if done:
+            if current_distance <= 0.1:  # Ngưỡng để xác định đã đến đích chính
+                rospy.loginfo("Goal reached!")
+                reward = 100.0  # Phần thưởng khi đến đích chính
+                self.goal_counters += 1
+            else:
+                rospy.loginfo("Done, but not goal (no penalty for collision).")
+                reward = 0.0  # Không phạt nếu va chạm
+            self.pub_cmd_vel.publish(Twist())  # Dừng robot
         else:
-            rospy.loginfo("Done, but not goal (no penalty for collision).")
-            reward = 0.0  # Không phạt nếu va chạm
-        self.pub_cmd_vel.publish(Twist())  # Dừng robot
-    else:
-        # Phần thưởng là giá trị âm của khoảng cách
-        reward = -current_distance
-
-        # Kiểm tra xem robot có đi qua điểm đích phụ không
-        for i, (sub_x, sub_y) in enumerate(sub_goals):
-            sub_distance = math.sqrt((self.position.x - sub_x)**2 + (self.position.y - sub_y)**2)
-            if sub_distance <= 0.1:  # Ngưỡng để xác định đã đến điểm đích phụ
-                rospy.loginfo(f"Sub-goal {i+1} reached!")
-                reward += 10.0  # Phần thưởng khi đi qua mỗi điểm đích phụ
-                sub_goals.pop(i)  # Loại bỏ điểm đích phụ đã đạt được để không thưởng lại
-                break
-
-        # Thưởng thêm nếu robot đi đúng hướng
-        if angle_difference < 0.1:  # Giả sử góc lệch nhỏ hơn 0.1 radian (khoảng 5.7 độ)
-            reward += 0.1  # Thưởng thêm nếu robot đi đúng hướng về đích
-
-    return reward, self.goal_counters
+            # Phần thưởng là giá trị âm của khoảng cách
+            reward = -current_distance
+    
+            # Kiểm tra xem robot có đi qua điểm đích phụ không
+            for i, (sub_x, sub_y) in enumerate(sub_goals):
+                sub_distance = math.sqrt((self.position.x - sub_x)**2 + (self.position.y - sub_y)**2)
+                if sub_distance <= 0.1:  # Ngưỡng để xác định đã đến điểm đích phụ
+                    rospy.loginfo(f"Sub-goal {i+1} reached!")
+                    reward += 10.0  # Phần thưởng khi đi qua mỗi điểm đích phụ
+                    sub_goals.pop(i)  # Loại bỏ điểm đích phụ đã đạt được để không thưởng lại
+                    break
+    
+            # Thưởng thêm nếu robot đi đúng hướng
+            if angle_difference < 0.1:  # Giả sử góc lệch nhỏ hơn 0.1 radian (khoảng 5.7 độ)
+                reward += 0.1  # Thưởng thêm nếu robot đi đúng hướng về đích
+    
+        return reward, self.goal_counters
 
 
     def step(self, action):
