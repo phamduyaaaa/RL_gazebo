@@ -101,43 +101,30 @@ class DuelingQAgent():
     def updateTargetModel(self):
         self.Target_model.load_state_dict(self.Pred_model.state_dict())
    
-    def getAction(self, state):
-        # Initialize action as None to ensure it's always defined
-        action = None
-
-        # Ensure state is properly processed before action
-        if len(state.shape) == 2:
-            state = torch.from_numpy(state).float()  # Đảm bảo state là tensor kiểu float
-            state = state.unsqueeze(0).view(1, 1, 144, 176)  # Reshape nếu cần thiết
-
-            # Dự đoán giá trị Q
-            q_value = torch.mean(self.Pred_model(state), dim=2)  # Kiểm tra lại dim=2 có phù hợp không
-
-            # Kiểm tra chế độ "train" hay "test"
-            if self.mode == "train":
-                if np.random.rand() <= self.epsilon:
-                    # Lựa chọn hành động ngẫu nhiên khi ở chế độ train
-                    action = random.randrange(self.action_size)
-                    q_value = torch.zeros(self.action_size)  # Đảm bảo q_value có giá trị hợp lệ
-                    print(f"Random action selected: {action}")
-                else:
-                    # Lựa chọn hành động từ giá trị Q lớn nhất
-                    action = int(torch.argmax(q_value))
-                    print(f"Predicted action: {action}")
-
-            elif self.mode == "test":
-                # Chế độ test, luôn chọn hành động có giá trị Q lớn nhất
-                action = int(torch.argmax(q_value))
-                print(f"Predicted action (test mode): {action}")
-
-            # Kiểm tra hành động hợp lệ
-            if action is None or action < 0 or action >= self.action_size:
-                print("Invalid action! Falling back to random action.")
+    def getAction(self, state):       
+        # Kiểm tra và chuyển đổi state nếu cần
+        if isinstance(state, np.ndarray):
+            state = torch.from_numpy(state).float()
+        elif isinstance(state, torch.Tensor):
+            state = state.float()
+        else:
+            raise TypeError(f"Unsupported state type: {type(state)}")
+        
+        # Không cần thêm batch dimension nữa vì state đã có shape phù hợp
+        q_value = torch.mean(self.Pred_model(state), dim=2)  # Tính giá trị Q
+        
+        if self.mode == "train":
+            if np.random.rand() <= self.epsilon:
                 action = random.randrange(self.action_size)
-
-        if action is None:
-            # If somehow action is still None, ensure a valid fallback
-            action = random.randrange(self.action_size)
+                print(f"Random action selected: {action}")
+            else:
+                action = int(torch.argmax(q_value))
+                print(f"Predicted action: {action}")
+        elif self.mode == "test":
+            action = int(torch.argmax(q_value))
+            print(f"Predicted action (test mode): {action}")
+        else:
+            raise ValueError(f"Unsupported mode: {self.mode}")
         
         return action
 
@@ -183,17 +170,10 @@ class DuelingQAgent():
     #FIXED
     def TrainModel(self):
         states, actions, rewards, next_states, dones = self.RAM.sample(self.batch_size)
-        
-        # Kiểm tra kích thước trước khi squeeze
-        print(f"States shape before squeeze: {np.array(states).shape}")
-        print(f"Next States shape before squeeze: {np.array(next_states).shape}")
+
         
         states = np.array(states).squeeze()  # Shape: (batch_size, 4, height, width)
         next_states = np.array(next_states).squeeze()  # Shape: (batch_size, 176, 144)
-
-        # Kiểm tra kích thước sau khi squeeze
-        print(f"States shape after squeeze: {states.shape}")
-        print(f"Next States shape after squeeze: {next_states.shape}")
         
         # Chuyển thành tensor PyTorch
         states = torch.tensor(states).float()  # (batch_size, 4, height, width)
@@ -201,9 +181,6 @@ class DuelingQAgent():
 
         # Thêm chiều kênh vào next_states (chuyển từ [batch_size, height, width] thành [batch_size, 4, height, width])
         next_states = next_states.unsqueeze(1).expand(-1, 4, -1, -1)
-
-        # Kiểm tra lại kích thước sau khi thêm kênh
-        print(f"Next States shape after unsqueeze and expand: {next_states.shape}")
 
         actions = torch.Tensor(actions).type(torch.int64).unsqueeze(-1)
 
