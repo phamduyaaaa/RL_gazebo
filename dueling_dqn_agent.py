@@ -64,7 +64,7 @@ class DuelingQAgent():
         self.taus= torch.linspace(0.0, 1.0, 51, dtype=torch.float32)
         self.mode = mode
         self.load_model = False
-        self.load_episode = load_eps
+        self.load_episode = 1000
         self.state_size = state_size
         self.action_size = action_size
         self.episode_step = 6000
@@ -95,7 +95,8 @@ class DuelingQAgent():
             self.load_model = True
         
         if self.load_model:
-            loaded_state_dict = torch.load(self.dirPath + str(self.load_episode) + '.pt')
+            loaded_state_dict = torch.load(self.dirPath + str(self.load_episode) + 'check.pt')
+            print(f"LOAD EPISODE: {self.load_episode}")
             self.Pred_model.load_state_dict(loaded_state_dict)
 
     def updateTargetModel(self):
@@ -119,7 +120,7 @@ class DuelingQAgent():
                 print(f"Random action selected: {action}")
             else:
                 action = int(torch.argmax(q_value))
-                print(f"Predicted action: {action}")
+                print(f"Predicted action: {action}","-_-_-",f"-->{q_value}")
         elif self.mode == "test":
             action = int(torch.argmax(q_value))
             print(f"Predicted action (test mode): {action}")
