@@ -87,41 +87,38 @@ class Env():
             done = True
         return image , done
 
-    def setReward(self, done, action):
-        # Danh sách các điểm đích phụ
-        sub_goals = [
-            (2.275399, -1.983545),
-            (0.024309, 0.898684),
-            (-5.071956, 1.048198),
-        ]
-    
-        # Tính khoảng cách hiện tại đến mục tiêu chính
-        current_distance = math.sqrt((self.position.x - self.goal_x)**2 + (self.position.y - self.goal_y)**2)
-        reward = 0.0
-    
-        if done:
-            if current_distance <= 0.1:  # Ngưỡng để xác định đã đến đích chính
-                rospy.loginfo("Goal reached!")
-                reward = 100.0  # Phần thưởng khi đến đích chính
-                self.goal_counters += 1
+        def setReward(self, done, action):
+            # Danh sách các điểm đích phụ
+            sub_goals = [
+                (2.275399, -1.983545),
+                (0.024309, 0.898684),
+                (-5.071956, 1.048198),
+            ]
+        
+            # Tính khoảng cách hiện tại đến mục tiêu chính
+            current_distance = math.sqrt((self.position.x - self.goal_x)**2 + (self.position.y - self.goal_y)**2)
+            reward = 0.0
+        
+            if done:
+                if current_distance <= 0.1:  # Ngưỡng để xác định đã đến đích chính
+                    rospy.loginfo("Goal reached!")
+                    reward += 100.0  # Phần thưởng khi đến đích chính
+                    self.goal_counters += 1
+                else:
+                    rospy.loginfo("Done, but not goal (no penalty for collision).")
+                    reward -= current_distance
+                self.pub_cmd_vel.publish(Twist())  # Dừng robot
             else:
-                rospy.loginfo("Done, but not goal (no penalty for collision).")
-                reward = 0.0  # Không phạt nếu va chạm
-            self.pub_cmd_vel.publish(Twist())  # Dừng robot
-        else:
-            # Phần thưởng là giá trị âm của khoảng cách
-            reward = -current_distance
-    
-            # Kiểm tra xem robot có đi qua điểm đích phụ không
-            for i, (sub_x, sub_y) in enumerate(sub_goals):
-                sub_distance = math.sqrt((self.position.x - sub_x)**2 + (self.position.y - sub_y)**2)
-                if sub_distance <= 0.1:  # Ngưỡng để xác định đã đến điểm đích phụ
-                    rospy.loginfo(f"Sub-goal {i+1} reached!")
-                    reward += 10.0  # Phần thưởng khi đi qua mỗi điểm đích phụ
-                    sub_goals.pop(i)  # Loại bỏ điểm đích phụ đã đạt được để không thưởng lại
-                    break
-    
-        return reward, self.goal_counters
+                # Kiểm tra xem robot có đi qua điểm đích phụ không
+                for i, (sub_x, sub_y) in enumerate(sub_goals):
+                    sub_distance = math.sqrt((self.position.x - sub_x)**2 + (self.position.y - sub_y)**2)
+                    if sub_distance <= 0.3:  # Ngưỡng để xác định đã đến điểm đích phụ
+                        rospy.loginfo(f"Sub-goal {i+1} reached!")
+                        reward += 30.0*(i+1)  # Phần thưởng khi đi qua mỗi điểm đích phụ
+                        sub_goals.pop(i)  # Loại bỏ điểm đích phụ đã đạt được để không thưởng lại
+                        break
+        
+            return reward, self.goal_counters
 
 
     def step(self, action):
