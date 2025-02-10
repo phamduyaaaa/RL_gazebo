@@ -64,7 +64,7 @@ class DuelingQAgent():
         self.taus= torch.linspace(0.0, 1.0, 51, dtype=torch.float32)
         self.mode = mode
         self.load_model = False
-        self.load_episode = 1000
+        self.load_episode = 0
         self.state_size = state_size
         self.action_size = action_size
         self.episode_step = 6000
