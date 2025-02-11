@@ -19,40 +19,35 @@ from torchsummary import summary
 LOSS_DATA_DIR = os.path.dirname(os.path.realpath(__file__))
 LOSS_DATA_DIR = LOSS_DATA_DIR.replace('dueling_dqn_gazebo/nodes', 'dueling_dqn_gazebo/save_model/Dueling_DQN_trial_1/log_data')
 from setup import *
-class MemoryBuffer:
+class MemoryBuffer():
     def __init__(self, size):
         self.buffer = deque(maxlen=size)
         self.maxSize = size
         self.len = 0
-        self.state_stack = deque(maxlen=4)  # To store 4 consecutive images
-
+        
     def sample(self, count):
+        batch = []
         count = min(count, self.len)
         batch = random.sample(self.buffer, count)
         
         states_array = np.float32([array[0] for array in batch])
+        
         actions_array = np.float32([array[1] for array in batch])
         rewards_array = np.float32([array[2] for array in batch])
         next_states_array = np.float32([array[3] for array in batch])
         dones = np.bool8([array[4] for array in batch])
         
         return states_array, actions_array, rewards_array, next_states_array, dones
-
-    def add(self, s, a, r, new_s, d):
-        # Append the new image to the state stack
-        self.state_stack.append(s)
-        
-        # Ensure that the state stack has 4 images before adding to buffer
-        if len(self.state_stack) == 4:
-            stacked_state = np.stack(self.state_stack, axis=0)  # Shape: (4, height, width)
-            transition = (stacked_state, a, r, new_s, d)
-            self.len += 1 
-            if self.len > self.maxSize:
-                self.len = self.maxSize
-            self.buffer.append(transition)
-
-    def __len__(self):
+    
+    def len(self):
         return self.len
+    
+    def add(self, s, a, r, new_s, d):
+        transition = (s, a, r, new_s, d)
+        self.len += 1 
+        if self.len > self.maxSize:
+            self.len = self.maxSize
+        self.buffer.append(transition)
 
 
 class DuelingQAgent():
