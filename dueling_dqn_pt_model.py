@@ -19,6 +19,8 @@ from nav_msgs.msg import Odometry
 dirPath = os.path.dirname(os.path.realpath(__file__))
 LOG_DATA_DIR = dirPath + '/log_data'
 EPISODES = num_episodes    
+def is_goal_reached(x, y, goal_x=1.0, goal_y=1.0, threshold=0.1):
+    return np.sqrt((x - goal_x) ** 2 + (y - goal_y) ** 2) < threshold
 
 def Training():
     mode = "train"
@@ -94,6 +96,9 @@ def Training():
 
                 if step >= 1000:
                     print('\n==> Time out! Maxed step per episode\n')
+                    done = True
+                if is_goal_reached(x, y):  # Hàm kiểm tra điều kiện đến đích
+                    print("\n==> Goal reached!")
                     done = True
 
                 if done:
