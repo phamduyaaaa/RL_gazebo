@@ -18,7 +18,7 @@ from duelingQ_network import DuelingQNetwork
 from torchsummary import summary
 LOSS_DATA_DIR = os.path.dirname(os.path.realpath(__file__))
 LOSS_DATA_DIR = LOSS_DATA_DIR.replace('dueling_dqn_gazebo/nodes', 'dueling_dqn_gazebo/save_model/Dueling_DQN_trial_1/log_data')
-from setup import *
+
 class MemoryBuffer():
     def __init__(self, size):
         self.buffer = deque(maxlen=size)
@@ -59,26 +59,26 @@ class DuelingQAgent():
         self.taus= torch.linspace(0.0, 1.0, 51, dtype=torch.float32)
         self.mode = mode
         self.load_model = False
-        self.load_episode = 0
+        self.load_episode = load_eps
         self.state_size = state_size
         self.action_size = action_size
         self.episode_step = 6000
-        self.target_update = 2000
+        self.target_update = 2000   #2000    # after target_update's time, Target network will be updated
         self.discount_factor = 0.995
-        self.learning_rate = 0.001
+        self.learning_rate = 0.001      #0.00025
         self.epsilon = 1.0
-        self.epsilon_decay = 0.999
+        self.epsilon_decay = 0.997      #0.996
         self.epsilon_min = 0.01
         self.tau = 0.01
-        self.batch_size = 64
+        self.batch_size =64
         self.train_start = 64
-        self.memory_size = replay_buffer_size
+        self.memory_size = 45000
         self.RAM = MemoryBuffer(self.memory_size)
-        self.num_actions = 5
+        
         self.Pred_model = DuelingQNetwork()
         self.Target_model = DuelingQNetwork()
         
-        self.optimizer = optim.AdamW(self.Pred_model.parameters(), self.learning_rate)
+        self.optimizer = optim.AdamW(self.Pred_model.parameters(), self.learning_rate) # Adam Optimizer but with L2 Regularization implemented
         self.loss_func = nn.MSELoss()
         self.episode_loss = 0.0
         self.running_loss = 0.0
@@ -89,117 +89,82 @@ class DuelingQAgent():
         if self.mode == "test":
             self.load_model = True
         
+        # Switches between training on initial weights and weights loaded from the pre-trained episode
         if self.load_model:
-            loaded_state_dict = torch.load(self.dirPath + str(self.load_episode) + 'check.pt')
-            print(f"LOAD EPISODE: {self.load_episode}")
+            loaded_state_dict = torch.load(self.dirPath+str(self.load_episode)+'.pt')
             self.Pred_model.load_state_dict(loaded_state_dict)
+            
 
     def updateTargetModel(self):
         self.Target_model.load_state_dict(self.Pred_model.state_dict())
    
-    def getAction(self, state):       
-        # Kiểm tra và chuyển đổi state nếu cần
-        if isinstance(state, np.ndarray):
-            state = torch.from_numpy(state).float()
-        elif isinstance(state, torch.Tensor):
-            state = state.float()
-        else:
-            raise TypeError(f"Unsupported state type: {type(state)}")
+    def getAction(self, state):
         
-        # Không cần thêm batch dimension nữa vì state đã có shape phù hợp
-        q_value = torch.mean(self.Pred_model(state), dim=2)  # Tính giá trị Q
+        if len(state.shape)==2:
+            state = torch.from_numpy(state)
+            state=state.unsqueeze(0).view(1, 1, 144, 176)
+            self.q_value =torch.mean(self.Pred_model(state), dim=2)
+            
+            if self.mode == "train":
+                if np.random.rand() <= self.epsilon:
+                    self.q_value = np.zeros(self.action_size)
+                    action = random.randrange(self.action_size)
+                else:
+                    action = int(torch.argmax(self.q_value))
+                    print("(*) Predicted action: ", action)
+            if self.mode =="test":
+                action = int(torch.argmax(self.q_value))
+            return action
         
-        if self.mode == "train":
-            if np.random.rand() <= self.epsilon:
-                action = random.randrange(self.action_size)
-                print(f"Random action selected: {action}")
-            else:
-                action = int(torch.argmax(q_value))
-                print(f"Predicted action: {action}","-_-_-",f"-->{q_value}")
-        elif self.mode == "test":
-            action = int(torch.argmax(q_value))
-            print(f"Predicted action (test mode): {action}")
-        else:
-            raise ValueError(f"Unsupported mode: {self.mode}")
-        
-        return action
 
-    #FIXED
-    def quantile_huber_loss(self, target_quantiles, predicted_quantiles):
-        # Ensure target_quantiles has the correct shape: [batch_size, num_actions, num_quantiles, num_features]
-        target_quantiles = target_quantiles.squeeze(1)  # Shape: [batch_size, num_quantiles, num_features]
-        
-        # Check if we need to add a new dimension (unsqueeze) to match num_actions
-        target_quantiles = target_quantiles.unsqueeze(1)  # Shape: [batch_size, 1, num_quantiles, num_features]
 
-        # Expand to match the actions dimension (expand to match [batch_size, num_actions, num_quantiles, num_features])
-        target_quantiles = target_quantiles.expand(-1, self.num_actions, -1, -1)  # Shape: [batch_size, num_actions, num_quantiles, num_features]
+    def quantile_huber_loss(self,target_quantiles, predicted_quantiles,kappa=0.5):
+        errors = target_quantiles- predicted_quantiles
+        errors_regression=Regressions.mean_square_error(predicted_quantiles,target_quantiles)
+        tau_scaled = torch.abs(self.taus.unsqueeze(1).unsqueeze(1) - (errors.detach() < 0).float())
+        quantile_loss = tau_scaled * errors_regression
+       
+    
+        loss = quantile_loss.sum(dim=2).mean(dim=1).mean()
 
-        # Ensure predicted_quantiles has the correct number of dimensions: [batch_size, num_actions, num_quantiles, num_features]
-        # Assuming predicted_quantiles has the shape [batch_size, num_actions], 
-        # we need to expand it to have the same dimensions as target_quantiles.
-        
-        predicted_quantiles = predicted_quantiles.unsqueeze(2).unsqueeze(3)  # Add dimensions for num_quantiles and num_features
-        predicted_quantiles = predicted_quantiles.expand(-1, -1, 5, 51)  # Expand to match the quantiles and features
-
-        # Now, both tensors should have the same shape: [batch_size, num_actions, num_quantiles, num_features]
-        assert target_quantiles.shape == predicted_quantiles.shape, \
-            f"Shape mismatch: target_quantiles {target_quantiles.shape}, predicted_quantiles {predicted_quantiles.shape}"
-
-        # Calculate the error between target and predicted quantiles
-        errors = target_quantiles - predicted_quantiles  # Now both tensors should have the same shape
-
-        # Apply Huber loss function
-        huber_loss = torch.where(errors.abs() < 1.0, 0.5 * errors ** 2, errors.abs() - 0.5)
-        
-        # Calculate and return the final loss
-        loss = huber_loss.mean()
         return loss
 
-
-
-
-
     def soft_update(self, local_model, target_model):
+        
         for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
-            target_param.data.copy_(1e-2 * local_param.data + (1.0 - 1e-2) * target_param.data)
-    #FIXED
+            target_param.data.copy_(1e-2*local_param.data + (1.0-1e-2)*target_param.data)
+
     def TrainModel(self):
         states, actions, rewards, next_states, dones = self.RAM.sample(self.batch_size)
+        states = np.array(states).squeeze()
+        next_states = np.array(next_states).squeeze()
+        states = torch.tensor(states).view(64, 1, 144, 176)
+        next_states = torch.tensor(next_states).view(64, 1, 144, 176)
 
+        actions = torch.Tensor(actions)
+        actions = actions.type(torch.int64).unsqueeze(-1)
         
-        states = np.array(states).squeeze()  # Shape: (batch_size, 4, height, width)
-        next_states = np.array(next_states).squeeze()  # Shape: (batch_size, 176, 144)
-        
-        # Chuyển thành tensor PyTorch
-        states = torch.tensor(states).float()  # (batch_size, 4, height, width)
-        next_states = torch.tensor(next_states).float()
-
-        # Thêm chiều kênh vào next_states (chuyển từ [batch_size, height, width] thành [batch_size, 4, height, width])
-        next_states = next_states.unsqueeze(1).expand(-1, 4, -1, -1)
-
-        actions = torch.Tensor(actions).type(torch.int64).unsqueeze(-1)
-
         next_q_value = torch.max(self.Target_model(next_states), dim=1)[0].detach().numpy()
-
-        q_value = torch.zeros(self.batch_size, 51, dtype=torch.float32)
-
+        
+        ## check if the episode terminates in next step
+        q_value = np.zeros((self.batch_size,51))
+        
         for i in range(self.batch_size):
             if dones[i]:
-                q_value[i] = torch.tensor(rewards[i], dtype=torch.float32)
+                q_value[i] = rewards[i]
             else:
-                q_value[i] = rewards[i] + self.discount_factor * torch.tensor(next_q_value[i], dtype=torch.float32)
+                
+                q_value[i] = rewards[i]+self.discount_factor * next_q_value[i]
+
+        td_target = torch.Tensor(q_value)
+        tung=self.Pred_model(states)
+        predicted_values = tung.gather(1, actions.view(64, 1, 1).expand(64, 1, tung.size(2))).squeeze()
+
+        
 
 
-        td_target = q_value.unsqueeze(1).expand(-1, self.num_actions, -1)  # Make sure q_value is of the same shape
-
-        predicted_values = self.Pred_model(states).gather(1, actions.view(self.batch_size, 1, 1).expand(self.batch_size, 1, 5)).squeeze()
-
-
-        self.loss = self.quantile_huber_loss(td_target, predicted_values)
-
-
-
+        self.loss=self.quantile_huber_loss(td_target,predicted_values )
+       
         self.optimizer.zero_grad()
         self.loss.backward()
         self.optimizer.step()
@@ -210,7 +175,5 @@ class DuelingQAgent():
         self.training_loss.append(cal_loss)
         self.counter += 1
         self.x_episode.append(self.counter)
-        np.savetxt(LOSS_DATA_DIR + '/loss.csv', self.training_loss, delimiter=' , ')
-
-
-
+        np.savetxt(LOSS_DATA_DIR + '/loss.csv', self.training_loss, delimiter = ' , ')
+        
