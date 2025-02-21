@@ -12,6 +12,9 @@ from std_msgs.msg import Float32MultiArray
 from src.dueling_dqn_env import Env
 from dueling_dqn_agent import *
 from setup import *
+import csv
+from nav_msgs.msg import Odometry
+
 
 dirPath = os.path.dirname(os.path.realpath(__file__))
 LOG_DATA_DIR = dirPath + '/log_data'
@@ -72,7 +75,8 @@ def Training():
             for step in range(agent.episode_step):
                 action = agent.getAction(state)
                 next_state, reward, done, counters = env.step(action)
-                x, y, theta = env.robot_position()  # Giả sử hàm này trả về vị trí hiện tại của robot
+                odom = rospy.wait_for_message('/odom', Odometry)
+                x, y, theta = env.getOdometry(odom) # Giả sử hàm này trả về vị trí hiện tại của robot
                 position_writer.writerow([e, step, x, y, theta]) # NEWx2 
                 done = np.bool8(done)
                 
