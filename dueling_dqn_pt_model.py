@@ -19,7 +19,7 @@ from nav_msgs.msg import Odometry
 dirPath = os.path.dirname(os.path.realpath(__file__))
 LOG_DATA_DIR = dirPath + '/log_data'
 EPISODES = num_episodes    
-def is_goal_reached(x, y, goal_x=1.0, goal_y=1.0, threshold=0.1):
+def is_goal_reached(x, y, goal_x=goal_x, goal_y=goal_x, threshold=0.30):
     return np.sqrt((x - goal_x) ** 2 + (y - goal_y) ** 2) < threshold
 
 def Training():
