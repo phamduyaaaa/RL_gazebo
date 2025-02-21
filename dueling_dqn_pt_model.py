@@ -20,7 +20,7 @@ dirPath = os.path.dirname(os.path.realpath(__file__))
 LOG_DATA_DIR = dirPath + '/log_data'
 EPISODES = num_episodes    
 def is_goal_reached(x, y, goal_x, goal_y, threshold=0.30):
-    return np.sqrt((x - goal_x) ** 2 + (y - goal_y) ** 2) < threshold
+    return np.sqrt((x - goal_x) ** 2 + (y - goal_y) ** 2) <= threshold
 
 def Training():
     mode = "train"
