@@ -56,6 +56,9 @@ def Training():
     text = text + '****************************************************************\n'
     print(text)
     log_sim_info.write(text)
+    position_log_file = open(LOG_DATA_DIR + '/robot_positions.csv', 'w', newline='') #NEWx3
+    position_writer = csv.writer(position_log_file)
+    position_writer.writerow(["Episode", "Step", "X", "Y", "Theta"])  # Ghi header
 
     for e in range(agent.load_episode + 1, EPISODES):
         text = '\r\n' + '_____ EPISODE: ' + str(e) + ' _____' + '\r\n'
@@ -69,6 +72,8 @@ def Training():
             for step in range(agent.episode_step):
                 action = agent.getAction(state)
                 next_state, reward, done, counters = env.step(action)
+                x, y, theta = env.robot_position()  # Giả sử hàm này trả về vị trí hiện tại của robot
+                position_writer.writerow([e, step, x, y, theta]) # NEWx2 
                 done = np.bool8(done)
                 
                 agent.RAM.add(state, action, reward, next_state, done)
@@ -80,8 +85,8 @@ def Training():
                 get_action.data = [action, reward_per_episode, reward]
                 pub_get_action.publish(get_action)
 
-                #if e % 10 == 0:
-                    #torch.save(agent.Pred_model.state_dict(), agent.dirPath + str(e) + '.pt')
+                if e == 1500 or e == 1000:
+                    torch.save(agent.Pred_model.state_dict(), agent.dirPath + str(e) + '.pt')
 
                 if step >= 1000:
                     print('\n==> Time out! Maxed step per episode\n')
@@ -126,6 +131,7 @@ def Training():
     
     # Close the log file
     log_sim_info.close()
+    position_log_file.close() # Newx1
         
         
 if __name__ == '__main__':
